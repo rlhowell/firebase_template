@@ -1,0 +1,6 @@
+lib/
+node_modules/
+# Per-project environment files — copy .env.example and fill in real values.
+# Never commit these; they contain app IDs and cert fingerprints.
+.env.*
+!.env.example

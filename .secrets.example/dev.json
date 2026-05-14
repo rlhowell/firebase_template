@@ -1,0 +1,9 @@
+{
+  "APP_BUNDLE_ID": "com.yourcompany.app.dev",
+  "APP_NAME": "MyApp Dev",
+  "DEEP_LINK_HOST": "YOUR_DEV_PROJECT_ID.web.app",
+  "CUSTOM_SCHEME": "yourapp",
+  "FUNCTIONS_REGION": "europe-west2",
+  "REVENUE_CAT_KEY_APPLE": "appl_YOUR_REVENUECAT_APPLE_KEY",
+  "REVENUE_CAT_KEY_ANDROID": "goog_YOUR_REVENUECAT_ANDROID_KEY"
+}

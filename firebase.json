@@ -1,0 +1,14 @@
+{
+  "functions": {
+    "source": "functions"
+  },
+  "hosting": {
+    "public": "public",
+    "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
+    "rewrites": [
+      { "source": "/l/**",                                    "function": "openLink" },
+      { "source": "/.well-known/apple-app-site-association",  "function": "appleAppSiteAssociation" },
+      { "source": "/.well-known/assetlinks.json",             "function": "assetLinks" }
+    ]
+  }
+}

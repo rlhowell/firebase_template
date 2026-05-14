@@ -1,0 +1,82 @@
+# ─── Flutter / Dart ──────────────────────────────────────────────────────────
+**/doc/api/
+**/ios/Flutter/.last_build_id
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.pub-cache/
+.pub/
+/build/
+/coverage/
+
+# Code-generation outputs (freezed, json_serializable, etc.)
+*.g.dart
+*.freezed.dart
+
+# Symbolication / obfuscation artefacts
+app.*.symbols
+app.*.map.json
+
+# ─── Android ─────────────────────────────────────────────────────────────────
+/android/app/debug/
+/android/app/profile/
+/android/app/release/
+android/local.properties
+android/key.properties
+*.jks
+*.keystore
+
+# ─── iOS ─────────────────────────────────────────────────────────────────────
+ios/Pods/
+ios/.symlinks/
+ios/Flutter/Flutter.framework
+ios/Flutter/Flutter.podspec
+ios/Flutter/ephemeral/
+ios/Flutter/Generated.xcconfig
+ios/Flutter/flutter_export_environment.sh
+ios/Runner/GeneratedPluginRegistrant.h
+
+# ─── FVM ─────────────────────────────────────────────────────────────────────
+# fvm_config.json is committed (it pins the Flutter version).
+# The cached SDK itself is not.
+.fvm/flutter_sdk/
+
+# ─── Firebase project config (project IDs are per-deployment) ────────────────
+.firebaserc
+
+# ─── Credentials & secrets ───────────────────────────────────────────────────
+# APNs authentication key — never commit, store securely outside the repo.
+*.p8
+
+# Firebase — real files live in ~/.secrets/firebase_template/{dev,staging,prod}/
+# and are copied into the project by the run scripts. Never commit them.
+android/app/google-services.json
+ios/Runner/GoogleService-Info.plist
+lib/firebase_options/firebase_options_dev.dart
+lib/firebase_options/firebase_options_staging.dart
+lib/firebase_options/firebase_options_prod.dart
+
+# ─── IDE ─────────────────────────────────────────────────────────────────────
+.idea/
+*.iml
+*.ipr
+*.iws
+.vscode/
+
+# ─── macOS ───────────────────────────────────────────────────────────────────
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# ─── Misc ────────────────────────────────────────────────────────────────────
+*.class
+*.log
+*.pyc
+*.swp
+.atom/
+.build/
+.buildlog/
+.history
+.svn/
+.swiftpm/
+migrate_working_dir/
