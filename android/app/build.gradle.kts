@@ -1,4 +1,5 @@
 import java.util.Base64
+import java.util.Properties
 
 // Decode dart-defines injected via --dart-define-from-file
 val dartDefines: Map<String, String> = run {
@@ -16,6 +17,13 @@ val dartDefines: Map<String, String> = run {
 val appBundleId = dartDefines["APP_BUNDLE_ID"] ?: "com.yourcompany.firebase_template"
 val deepLinkHost = dartDefines["DEEP_LINK_HOST"] ?: ""
 val customScheme = dartDefines["CUSTOM_SCHEME"] ?: "yourapp"
+
+// Replace YOUR_APP_NAME with your app's secrets directory name
+val keystorePropsFile = File(System.getProperty("user.home"), ".secrets/YOUR_APP_NAME/android/keystore.properties")
+val keystoreProps = Properties()
+if (keystorePropsFile.exists()) {
+    keystorePropsFile.inputStream().use { keystoreProps.load(it) }
+}
 
 plugins {
     id("com.android.application")
@@ -39,6 +47,17 @@ android {
         jvmTarget = JavaVersion.VERSION_17.toString()
     }
 
+    signingConfigs {
+        create("release") {
+            if (keystorePropsFile.exists()) {
+                storeFile = File(keystorePropsFile.parentFile, keystoreProps["storeFile"] as String)
+                storePassword = keystoreProps["storePassword"] as String
+                keyAlias = keystoreProps["keyAlias"] as String
+                keyPassword = keystoreProps["keyPassword"] as String
+            }
+        }
+    }
+
     defaultConfig {
         applicationId = appBundleId
         minSdk = flutter.minSdkVersion
@@ -51,8 +70,11 @@ android {
 
     buildTypes {
         release {
-            // TODO: Add your own signing config before releasing
-            signingConfig = signingConfigs.getByName("debug")
+            signingConfig = if (keystorePropsFile.exists()) {
+                signingConfigs.getByName("release")
+            } else {
+                signingConfigs.getByName("debug")
+            }
         }
     }
 }

@@ -44,7 +44,17 @@ lib/
 scripts/
 ├── run_dev.bat / run_dev.sh
 ├── run_staging.bat / run_staging.sh
-└── run_prod.bat / run_prod.sh
+├── run_prod.bat / run_prod.sh
+├── release_dev.bat / release_dev.sh
+├── release_staging.bat / release_staging.sh
+└── release_prod.bat / release_prod.sh
+fastlane/
+├── Fastfile                     # deploy_dev / deploy_staging / deploy_prod lanes
+└── Appfile
+.github/workflows/
+├── deploy_android_dev.yml       # Manual trigger → Play Store internal track
+├── deploy_android_staging.yml   # Manual trigger → Play Store internal track
+└── deploy_android_prod.yml      # Tag push → Play Store production track
 .secrets.example/                # Copy to ~/.secrets/<app-name>/ and fill in
 ```
 
@@ -113,9 +123,10 @@ The script will show a summary and prompt for confirmation before doing anything
 
 **What the script does:**
 - Creates a new private GitHub repo from the template and clones it
-- Renames `firebase_template` → your app name throughout `pubspec.yaml`, `build.gradle.kts`, and all run scripts
+- Renames `firebase_template` → your app name throughout `pubspec.yaml`, `build.gradle.kts`, run scripts, and `Fastfile`
 - Updates the app display names in `main_dev.dart`, `main_staging.dart`, and `main_prod.dart`
 - Creates `~/.secrets/<app-name>/` with correct bundle IDs pre-filled
+- Generates three Android signing keystores (dev/staging/prod) and their `keystore.properties` files
 - Runs `flutter pub get`
 
 > **Manual alternative**
@@ -330,7 +341,7 @@ Open `ios/Runner.xcworkspace` in Xcode and add the following capabilities to the
 keytool -list -v -keystore "$env:USERPROFILE\.android\debug.keystore" -alias androiddebugkey -storepass android -keypass android
 ```
 
-**Android release signing** — replace the `signingConfig` stub in `android/app/build.gradle.kts` with your real keystore before building a release.
+**Android release signing** — `New-FirebaseApp.ps1` generates the keystores and `keystore.properties` files automatically into `~/.secrets/<app-name>/android/{dev,staging,prod}/`. The `build.gradle.kts` reads them from there — no manual signing setup needed.
 
 ---
 
@@ -365,6 +376,58 @@ ref.watch(initialMessageProvider).whenData((message) {
   if (message != null) { /* navigate */ }
 });
 ```
+
+---
+
+## Releasing
+
+Releases are built and uploaded by GitHub Actions using [Fastlane](https://fastlane.tools). The `Fastfile` contains `deploy_dev`, `deploy_staging`, and `deploy_prod` lanes for Android (iOS lanes to follow). Each lane auto-increments the build number in `pubspec.yaml`, builds a signed AAB, uploads it to the Play Store, and commits the version bump.
+
+### First-time Play Store setup
+
+Before GitHub Actions can upload anything, Google requires at least one build to be uploaded **manually via the Play Console web UI** — the API will reject the first upload. Do this once per app (dev, staging, prod each need their own Play Store listing):
+
+1. Build an AAB locally: `bash scripts/release_dev.sh` (requires Ruby + Bundler installed)
+2. In Play Console → create the app → Internal testing → upload the AAB
+
+After that first manual upload, all subsequent releases go through GitHub Actions.
+
+### Google Play API access
+
+In Play Console → **Setup → API access**, create a service account and grant it **Release Manager** permissions. Download the JSON key and save it as `~/.secrets/<app-name>/google-play-service-account.json`.
+
+### GitHub Actions secrets
+
+Add these secrets to your GitHub repo (Settings → Secrets and variables → Actions):
+
+| Secret | Value |
+|---|---|
+| `DEV_KEYSTORE_BASE64` | `base64 -w 0 ~/.secrets/<app>/android/dev/<app>-dev.jks` |
+| `DEV_KEYSTORE_PASSWORD` | Dev keystore password |
+| `DEV_KEY_ALIAS` | `<app>-dev` |
+| `DEV_KEY_PASSWORD` | Dev key password |
+| `STAGING_KEYSTORE_BASE64` | Base64 of staging `.jks` |
+| `STAGING_KEYSTORE_PASSWORD` | Staging keystore password |
+| `STAGING_KEY_ALIAS` | `<app>-staging` |
+| `STAGING_KEY_PASSWORD` | Staging key password |
+| `PROD_KEYSTORE_BASE64` | Base64 of prod `.jks` |
+| `PROD_KEYSTORE_PASSWORD` | Prod keystore password |
+| `PROD_KEY_ALIAS` | `<app>-prod` |
+| `PROD_KEY_PASSWORD` | Prod key password |
+| `PLAY_STORE_JSON_KEY` | Contents of `google-play-service-account.json` |
+| `DEV_SECRETS_JSON` | Contents of `~/.secrets/<app>/dev.json` |
+| `DEV_GOOGLE_SERVICES_JSON` | Contents of `~/.secrets/<app>/dev/google-services.json` |
+| `STAGING_SECRETS_JSON` | Contents of `staging.json` |
+| `STAGING_GOOGLE_SERVICES_JSON` | Contents of `staging/google-services.json` |
+| `PROD_SECRETS_JSON` | Contents of `prod.json` |
+| `PROD_GOOGLE_SERVICES_JSON` | Contents of `prod/google-services.json` |
+
+### Triggering a release
+
+- **Dev / Staging** — go to GitHub → Actions → select the workflow → **Run workflow**
+- **Prod** — push a version tag: `git tag v1.2.0 && git push origin v1.2.0`
+
+The version number itself lives in `pubspec.yaml`. To bump the semantic version (not just the build number), edit `version: 1.0.0+N` manually and commit before tagging.
 
 ---
 
