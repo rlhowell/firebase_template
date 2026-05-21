@@ -95,6 +95,23 @@ Assert-Command "gh"
 Assert-Command "fvm"
 Write-Ok "gh and fvm found"
 
+$KeytoolPath = $null
+foreach ($c in @(
+    "C:\Program Files\Android\Android Studio\jbr\bin\keytool.exe",
+    "C:\Program Files\Android\Android Studio\jre\bin\keytool.exe"
+)) {
+    if (Test-Path $c) { $KeytoolPath = $c; break }
+}
+if (-not $KeytoolPath) {
+    $kt = Get-Command keytool -ErrorAction SilentlyContinue
+    if ($kt) { $KeytoolPath = $kt.Source }
+}
+if ($KeytoolPath) {
+    Write-Ok "keytool found"
+} else {
+    Write-Host "     ⚠  keytool not found — Android keystores will be skipped." -ForegroundColor Yellow
+}
+
 # ── Derive values ─────────────────────────────────────────────────────────────
 
 $AppDisplayName  = (Get-Culture).TextInfo.ToTitleCase(($AppName -replace '_', ' '))
@@ -129,6 +146,25 @@ if (-not $Force) {
         Write-Host "  Aborted." -ForegroundColor Yellow
         exit 0
     }
+}
+
+# ── Keystore passwords ────────────────────────────────────────────────────────
+
+$DevPass     = ""
+$StagingPass = ""
+$ProdPass    = ""
+
+if ($KeytoolPath) {
+    Write-Host ""
+    Write-Host "  Android signing keystores will be created at:" -ForegroundColor White
+    Write-Host "    $SecretsDir\android\{dev,staging,prod}\$AppName-{env}.jks" -ForegroundColor Gray
+    Write-Host "  Keep these passwords safe — losing them means you can never update the app." -ForegroundColor Yellow
+    Write-Host ""
+    $DevPass     = Read-Host "  Dev keystore password"
+    $StagingPass = Read-Host "  Staging keystore password [Enter = same as dev]"
+    $ProdPass    = Read-Host "  Prod keystore password    [Enter = same as dev]"
+    if ([string]::IsNullOrWhiteSpace($StagingPass)) { $StagingPass = $DevPass }
+    if ([string]::IsNullOrWhiteSpace($ProdPass))    { $ProdPass    = $DevPass }
 }
 
 # ── Clone from GitHub template ────────────────────────────────────────────────
@@ -188,6 +224,9 @@ ReplaceInFile "scripts\run_prod.bat"           "firebase_template"        $AppNa
 ReplaceInFile "scripts\run_dev.sh"             "firebase_template"        $AppName
 ReplaceInFile "scripts\run_staging.sh"         "firebase_template"        $AppName
 ReplaceInFile "scripts\run_prod.sh"            "firebase_template"        $AppName
+ReplaceInFile "fastlane\Fastfile"              "YOUR_APP_NAME"            $AppName
+ReplaceInFile "fastlane\Fastfile"              "com.yourcompany.yourapp"  $BundleIdProd
+ReplaceInFile "android\app\build.gradle.kts"   "YOUR_APP_NAME"            $AppName
 
 # ── Update iOS bundle identifiers ─────────────────────────────────────────────
 
@@ -244,6 +283,47 @@ $CustomScheme = $AppName.ToLower() -replace '_', '-'
 Write-Ok "dev.json"
 Write-Ok "staging.json"
 Write-Ok "prod.json"
+
+# ── Generate Android keystores ────────────────────────────────────────────────
+
+if ($KeytoolPath -and $DevPass) {
+    Write-Step "Generating Android signing keystores"
+
+    $keystoreBaseDir = "$SecretsDir\android"
+
+    foreach ($envInfo in @(
+        @{ Env = "dev";     Alias = "$AppName-dev";     Pass = $DevPass },
+        @{ Env = "staging"; Alias = "$AppName-staging"; Pass = $StagingPass },
+        @{ Env = "prod";    Alias = "$AppName-prod";    Pass = $ProdPass }
+    )) {
+        $envName = $envInfo.Env
+        $alias   = $envInfo.Alias
+        $pass    = $envInfo.Pass
+        $dir     = "$keystoreBaseDir\$envName"
+        $jks     = "$dir\$AppName-$envName.jks"
+
+        New-Item -ItemType Directory -Force $dir | Out-Null
+
+        & $KeytoolPath -genkey -noprompt `
+            -keystore $jks `
+            -storetype PKCS12 `
+            -alias $alias `
+            -keyalg RSA -keysize 2048 -validity 10000 `
+            -storepass $pass -keypass $pass `
+            -dname "CN=$AppName" | Out-Null
+
+        @"
+storeFile=$AppName-$envName.jks
+storePassword=$pass
+keyAlias=$alias
+keyPassword=$pass
+"@ | Set-Content "$dir\keystore.properties" -Encoding utf8
+
+        Write-Ok "$envName → $jks"
+    }
+} elseif (-not $KeytoolPath) {
+    Write-Host "     ⚠  Skipped keystores (keytool not found — install Android Studio first)." -ForegroundColor Yellow
+}
 
 # ── Generate CLAUDE.md for the new project ───────────────────────────────────
 
@@ -573,4 +653,5 @@ Write-Host "    2. Replace android\app\google-services.json"
 Write-Host "    3. Add ios\Runner\GoogleService-Info.plist in Xcode"
 Write-Host "    4. Update REVERSED_CLIENT_ID in ios\Runner\Info.plist"
 Write-Host "    5. Run: scripts\run_dev.bat"
+Write-Host "    6. For releases: run 'bundle install' then 'bash scripts/release_dev.sh'"
 Write-Host ""

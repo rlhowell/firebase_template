@@ -1,0 +1,143 @@
+default_platform(:android)
+
+# ── Replace these with your app's values ──────────────────────────────────────
+APP_NAME        = "YOUR_APP_NAME"          # matches ~/.secrets/<APP_NAME>/
+BUNDLE_ID_DEV   = "com.yourcompany.yourapp.dev"
+BUNDLE_ID_STAGE = "com.yourcompany.yourapp.staging"
+BUNDLE_ID_PROD  = "com.yourcompany.yourapp"
+# ──────────────────────────────────────────────────────────────────────────────
+
+PROJECT_ROOT = File.expand_path("..", __dir__)
+PUBSPEC_PATH = File.join(PROJECT_ROOT, "pubspec.yaml")
+SECRETS_DIR  = File.expand_path("~/.secrets/#{APP_NAME}")
+FLUTTER      = ENV["CI"] ? "flutter" : "fvm flutter"
+
+def read_version
+  m = File.read(PUBSPEC_PATH).match(/^version:\s+(\d+\.\d+\.\d+)\+(\d+)/)
+  raise "Cannot parse version from pubspec.yaml" unless m
+  { name: m[1], code: m[2].to_i }
+end
+
+def bump_build_number(v)
+  new_code = v[:code] + 1
+  File.write(PUBSPEC_PATH, File.read(PUBSPEC_PATH).sub(/^version: \S+/, "version: #{v[:name]}+#{new_code}"))
+  new_code
+end
+
+# ── Android ────────────────────────────────────────────────────────────────────
+
+platform :android do
+  desc "Deploy dev to Play Store internal track"
+  lane :deploy_dev do
+    v        = read_version
+    build_no = bump_build_number(v)
+    tag      = "#{v[:name]}+#{build_no}"
+
+    UI.message("Building #{tag} (android dev)")
+
+    sh("cp '#{SECRETS_DIR}/dev/google-services.json' '#{PROJECT_ROOT}/android/app/google-services.json'")
+
+    sh(
+      "#{FLUTTER} build appbundle --release" \
+      " --dart-define-from-file='#{SECRETS_DIR}/dev.json'" \
+      " --target=lib/main_dev.dart" \
+      " --build-number=#{build_no}" \
+      " --build-name=#{v[:name]}"
+    )
+
+    upload_to_play_store(
+      track:                   "internal",
+      aab:                     "#{PROJECT_ROOT}/build/app/outputs/bundle/release/app-release.aab",
+      json_key:                "#{SECRETS_DIR}/google-play-service-account.json",
+      package_name:            BUNDLE_ID_DEV,
+      skip_upload_apk:         true,
+      skip_upload_metadata:    true,
+      skip_upload_changelogs:  true,
+      skip_upload_images:      true,
+      skip_upload_screenshots: true,
+    )
+
+    git_commit(
+      path:    PUBSPEC_PATH,
+      message: "chore: release android dev #{tag}",
+    )
+
+    UI.success("✓ #{tag} deployed to Play Store internal track")
+  end
+
+  desc "Deploy staging to Play Store internal track"
+  lane :deploy_staging do
+    v        = read_version
+    build_no = bump_build_number(v)
+    tag      = "#{v[:name]}+#{build_no}"
+
+    UI.message("Building #{tag} (android staging)")
+
+    sh("cp '#{SECRETS_DIR}/staging/google-services.json' '#{PROJECT_ROOT}/android/app/google-services.json'")
+
+    sh(
+      "#{FLUTTER} build appbundle --release" \
+      " --dart-define-from-file='#{SECRETS_DIR}/staging.json'" \
+      " --target=lib/main_staging.dart" \
+      " --build-number=#{build_no}" \
+      " --build-name=#{v[:name]}"
+    )
+
+    upload_to_play_store(
+      track:                   "internal",
+      aab:                     "#{PROJECT_ROOT}/build/app/outputs/bundle/release/app-release.aab",
+      json_key:                "#{SECRETS_DIR}/google-play-service-account.json",
+      package_name:            BUNDLE_ID_STAGE,
+      skip_upload_apk:         true,
+      skip_upload_metadata:    true,
+      skip_upload_changelogs:  true,
+      skip_upload_images:      true,
+      skip_upload_screenshots: true,
+    )
+
+    git_commit(
+      path:    PUBSPEC_PATH,
+      message: "chore: release android staging #{tag}",
+    )
+
+    UI.success("✓ #{tag} deployed to Play Store internal track (staging)")
+  end
+
+  desc "Deploy prod to Play Store production track"
+  lane :deploy_prod do
+    v        = read_version
+    build_no = bump_build_number(v)
+    tag      = "#{v[:name]}+#{build_no}"
+
+    UI.message("Building #{tag} (android prod)")
+
+    sh("cp '#{SECRETS_DIR}/prod/google-services.json' '#{PROJECT_ROOT}/android/app/google-services.json'")
+
+    sh(
+      "#{FLUTTER} build appbundle --release" \
+      " --dart-define-from-file='#{SECRETS_DIR}/prod.json'" \
+      " --target=lib/main_prod.dart" \
+      " --build-number=#{build_no}" \
+      " --build-name=#{v[:name]}"
+    )
+
+    upload_to_play_store(
+      track:                   "production",
+      aab:                     "#{PROJECT_ROOT}/build/app/outputs/bundle/release/app-release.aab",
+      json_key:                "#{SECRETS_DIR}/google-play-service-account.json",
+      package_name:            BUNDLE_ID_PROD,
+      skip_upload_apk:         true,
+      skip_upload_metadata:    true,
+      skip_upload_changelogs:  true,
+      skip_upload_images:      true,
+      skip_upload_screenshots: true,
+    )
+
+    git_commit(
+      path:    PUBSPEC_PATH,
+      message: "chore: release android prod #{tag}",
+    )
+
+    UI.success("✓ #{tag} deployed to Play Store production track")
+  end
+end
