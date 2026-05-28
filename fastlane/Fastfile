@@ -12,15 +12,26 @@ PUBSPEC_PATH = File.join(PROJECT_ROOT, "pubspec.yaml")
 SECRETS_DIR  = File.expand_path("~/.secrets/#{APP_NAME}")
 FLUTTER      = ENV["CI"] ? "flutter" : "fvm flutter"
 
-def read_version
-  m = File.read(PUBSPEC_PATH).match(/^version:\s+(\d+\.\d+\.\d+)\+(\d+)/)
-  raise "Cannot parse version from pubspec.yaml" unless m
-  { name: m[1], code: m[2].to_i }
+# ── Version helpers ────────────────────────────────────────────────────────────
+
+def semantic_version
+  m = File.read(PUBSPEC_PATH).match(/^version:\s+(\d+\.\d+\.\d+)/)
+  raise "Cannot parse semantic version from pubspec.yaml" unless m
+  m[1]
 end
 
-def bump_build_number(v)
-  new_code = v[:code] + 1
-  File.write(PUBSPEC_PATH, File.read(PUBSPEC_PATH).sub(/^version: \S+/, "version: #{v[:name]}+#{new_code}"))
+def build_number_path(env)
+  File.join(PROJECT_ROOT, "build_numbers", env)
+end
+
+def read_build_number(env)
+  path = build_number_path(env)
+  File.exist?(path) ? File.read(path).strip.to_i : 0
+end
+
+def bump_build_number(env)
+  new_code = read_build_number(env) + 1
+  File.write(build_number_path(env), new_code.to_s)
   new_code
 end
 
@@ -29,9 +40,9 @@ end
 platform :android do
   desc "Deploy dev to Play Store internal track"
   lane :deploy_dev do
-    v        = read_version
-    build_no = bump_build_number(v)
-    tag      = "#{v[:name]}+#{build_no}"
+    version  = semantic_version
+    build_no = bump_build_number("dev")
+    tag      = "#{version}+#{build_no}"
 
     UI.message("Building #{tag} (android dev)")
 
@@ -42,7 +53,7 @@ platform :android do
       " --dart-define-from-file='#{SECRETS_DIR}/dev.json'" \
       " --target=lib/main_dev.dart" \
       " --build-number=#{build_no}" \
-      " --build-name=#{v[:name]}"
+      " --build-name=#{version}"
     )
 
     upload_to_play_store(
@@ -58,7 +69,7 @@ platform :android do
     )
 
     git_commit(
-      path:    PUBSPEC_PATH,
+      path:    build_number_path("dev"),
       message: "chore: release android dev #{tag}",
     )
 
@@ -67,9 +78,9 @@ platform :android do
 
   desc "Deploy staging to Play Store internal track"
   lane :deploy_staging do
-    v        = read_version
-    build_no = bump_build_number(v)
-    tag      = "#{v[:name]}+#{build_no}"
+    version  = semantic_version
+    build_no = bump_build_number("staging")
+    tag      = "#{version}+#{build_no}"
 
     UI.message("Building #{tag} (android staging)")
 
@@ -80,7 +91,7 @@ platform :android do
       " --dart-define-from-file='#{SECRETS_DIR}/staging.json'" \
       " --target=lib/main_staging.dart" \
       " --build-number=#{build_no}" \
-      " --build-name=#{v[:name]}"
+      " --build-name=#{version}"
     )
 
     upload_to_play_store(
@@ -96,7 +107,7 @@ platform :android do
     )
 
     git_commit(
-      path:    PUBSPEC_PATH,
+      path:    build_number_path("staging"),
       message: "chore: release android staging #{tag}",
     )
 
@@ -105,9 +116,9 @@ platform :android do
 
   desc "Deploy prod to Play Store production track"
   lane :deploy_prod do
-    v        = read_version
-    build_no = bump_build_number(v)
-    tag      = "#{v[:name]}+#{build_no}"
+    version  = semantic_version
+    build_no = bump_build_number("prod")
+    tag      = "#{version}+#{build_no}"
 
     UI.message("Building #{tag} (android prod)")
 
@@ -118,7 +129,7 @@ platform :android do
       " --dart-define-from-file='#{SECRETS_DIR}/prod.json'" \
       " --target=lib/main_prod.dart" \
       " --build-number=#{build_no}" \
-      " --build-name=#{v[:name]}"
+      " --build-name=#{version}"
     )
 
     upload_to_play_store(
@@ -134,7 +145,7 @@ platform :android do
     )
 
     git_commit(
-      path:    PUBSPEC_PATH,
+      path:    build_number_path("prod"),
       message: "chore: release android prod #{tag}",
     )
 

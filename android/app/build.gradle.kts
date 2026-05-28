@@ -19,7 +19,12 @@ val deepLinkHost = dartDefines["DEEP_LINK_HOST"] ?: ""
 val customScheme = dartDefines["CUSTOM_SCHEME"] ?: "yourapp"
 
 // Replace YOUR_APP_NAME with your app's secrets directory name
-val keystorePropsFile = File(System.getProperty("user.home"), ".secrets/YOUR_APP_NAME/android/keystore.properties")
+val keystoreEnv = when {
+    appBundleId.endsWith(".dev")     -> "dev"
+    appBundleId.endsWith(".staging") -> "staging"
+    else                             -> "prod"
+}
+val keystorePropsFile = File(System.getProperty("user.home"), ".secrets/YOUR_APP_NAME/android/$keystoreEnv/keystore.properties")
 val keystoreProps = Properties()
 if (keystorePropsFile.exists()) {
     keystorePropsFile.inputStream().use { keystoreProps.load(it) }

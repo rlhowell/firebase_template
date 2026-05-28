@@ -1,0 +1,74 @@
+name: Deploy Android Dev
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Get Flutter version
+        id: fvm
+        run: echo "version=$(jq -r '.flutter' .fvm/fvm_config.json)" >> $GITHUB_OUTPUT
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ steps.fvm.outputs.version }}
+          cache: true
+
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.3'
+          bundler-cache: true
+
+      - name: Write secrets
+        env:
+          DEV_KEYSTORE_BASE64:      ${{ secrets.DEV_KEYSTORE_BASE64 }}
+          DEV_KEYSTORE_PASSWORD:    ${{ secrets.DEV_KEYSTORE_PASSWORD }}
+          DEV_KEY_ALIAS:            ${{ secrets.DEV_KEY_ALIAS }}
+          DEV_KEY_PASSWORD:         ${{ secrets.DEV_KEY_PASSWORD }}
+          PLAY_STORE_JSON_KEY:      ${{ secrets.PLAY_STORE_JSON_KEY }}
+          DEV_SECRETS_JSON:         ${{ secrets.DEV_SECRETS_JSON }}
+          DEV_GOOGLE_SERVICES_JSON: ${{ secrets.DEV_GOOGLE_SERVICES_JSON }}
+        run: |
+          APP_NAME="YOUR_APP_NAME"
+          SECRETS_DIR="$HOME/.secrets/$APP_NAME"
+          mkdir -p "$SECRETS_DIR/dev"
+          mkdir -p "$SECRETS_DIR/android/dev"
+
+          echo "$DEV_SECRETS_JSON"         > "$SECRETS_DIR/dev.json"
+          echo "$DEV_GOOGLE_SERVICES_JSON" > "$SECRETS_DIR/dev/google-services.json"
+          echo "$PLAY_STORE_JSON_KEY"      > "$SECRETS_DIR/google-play-service-account.json"
+
+          echo "$DEV_KEYSTORE_BASE64" | base64 -d > "$SECRETS_DIR/android/dev/$APP_NAME-dev.jks"
+
+          {
+            echo "storeFile=$APP_NAME-dev.jks"
+            echo "storePassword=$DEV_KEYSTORE_PASSWORD"
+            echo "keyAlias=$APP_NAME-dev"
+            echo "keyPassword=$DEV_KEY_PASSWORD"
+          } > "$SECRETS_DIR/android/dev/keystore.properties"
+
+      - name: Configure git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Deploy
+        run: bundle exec fastlane android deploy_dev
+
+      - name: Push version bump
+        run: git push

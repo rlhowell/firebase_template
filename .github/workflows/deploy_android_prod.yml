@@ -1,0 +1,74 @@
+name: Deploy Android Prod
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Get Flutter version
+        id: fvm
+        run: echo "version=$(jq -r '.flutter' .fvm/fvm_config.json)" >> $GITHUB_OUTPUT
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ steps.fvm.outputs.version }}
+          cache: true
+
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.3'
+          bundler-cache: true
+
+      - name: Write secrets
+        env:
+          PROD_KEYSTORE_BASE64:      ${{ secrets.PROD_KEYSTORE_BASE64 }}
+          PROD_KEYSTORE_PASSWORD:    ${{ secrets.PROD_KEYSTORE_PASSWORD }}
+          PROD_KEY_ALIAS:            ${{ secrets.PROD_KEY_ALIAS }}
+          PROD_KEY_PASSWORD:         ${{ secrets.PROD_KEY_PASSWORD }}
+          PLAY_STORE_JSON_KEY:       ${{ secrets.PLAY_STORE_JSON_KEY }}
+          PROD_SECRETS_JSON:         ${{ secrets.PROD_SECRETS_JSON }}
+          PROD_GOOGLE_SERVICES_JSON: ${{ secrets.PROD_GOOGLE_SERVICES_JSON }}
+        run: |
+          APP_NAME="YOUR_APP_NAME"
+          SECRETS_DIR="$HOME/.secrets/$APP_NAME"
+          mkdir -p "$SECRETS_DIR/prod"
+          mkdir -p "$SECRETS_DIR/android/prod"
+
+          echo "$PROD_SECRETS_JSON"         > "$SECRETS_DIR/prod.json"
+          echo "$PROD_GOOGLE_SERVICES_JSON" > "$SECRETS_DIR/prod/google-services.json"
+          echo "$PLAY_STORE_JSON_KEY"       > "$SECRETS_DIR/google-play-service-account.json"
+
+          echo "$PROD_KEYSTORE_BASE64" | base64 -d > "$SECRETS_DIR/android/prod/$APP_NAME-prod.jks"
+
+          {
+            echo "storeFile=$APP_NAME-prod.jks"
+            echo "storePassword=$PROD_KEYSTORE_PASSWORD"
+            echo "keyAlias=$APP_NAME-prod"
+            echo "keyPassword=$PROD_KEY_PASSWORD"
+          } > "$SECRETS_DIR/android/prod/keystore.properties"
+
+      - name: Configure git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Deploy
+        run: bundle exec fastlane android deploy_prod
+
+      - name: Push version bump
+        run: git push

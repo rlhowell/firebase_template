@@ -1,0 +1,74 @@
+name: Deploy Android Staging
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Get Flutter version
+        id: fvm
+        run: echo "version=$(jq -r '.flutter' .fvm/fvm_config.json)" >> $GITHUB_OUTPUT
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ steps.fvm.outputs.version }}
+          cache: true
+
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.3'
+          bundler-cache: true
+
+      - name: Write secrets
+        env:
+          STAGING_KEYSTORE_BASE64:      ${{ secrets.STAGING_KEYSTORE_BASE64 }}
+          STAGING_KEYSTORE_PASSWORD:    ${{ secrets.STAGING_KEYSTORE_PASSWORD }}
+          STAGING_KEY_ALIAS:            ${{ secrets.STAGING_KEY_ALIAS }}
+          STAGING_KEY_PASSWORD:         ${{ secrets.STAGING_KEY_PASSWORD }}
+          PLAY_STORE_JSON_KEY:          ${{ secrets.PLAY_STORE_JSON_KEY }}
+          STAGING_SECRETS_JSON:         ${{ secrets.STAGING_SECRETS_JSON }}
+          STAGING_GOOGLE_SERVICES_JSON: ${{ secrets.STAGING_GOOGLE_SERVICES_JSON }}
+        run: |
+          APP_NAME="YOUR_APP_NAME"
+          SECRETS_DIR="$HOME/.secrets/$APP_NAME"
+          mkdir -p "$SECRETS_DIR/staging"
+          mkdir -p "$SECRETS_DIR/android/staging"
+
+          echo "$STAGING_SECRETS_JSON"         > "$SECRETS_DIR/staging.json"
+          echo "$STAGING_GOOGLE_SERVICES_JSON" > "$SECRETS_DIR/staging/google-services.json"
+          echo "$PLAY_STORE_JSON_KEY"          > "$SECRETS_DIR/google-play-service-account.json"
+
+          echo "$STAGING_KEYSTORE_BASE64" | base64 -d > "$SECRETS_DIR/android/staging/$APP_NAME-staging.jks"
+
+          {
+            echo "storeFile=$APP_NAME-staging.jks"
+            echo "storePassword=$STAGING_KEYSTORE_PASSWORD"
+            echo "keyAlias=$APP_NAME-staging"
+            echo "keyPassword=$STAGING_KEY_PASSWORD"
+          } > "$SECRETS_DIR/android/staging/keystore.properties"
+
+      - name: Configure git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Deploy
+        run: bundle exec fastlane android deploy_staging
+
+      - name: Push version bump
+        run: git push
