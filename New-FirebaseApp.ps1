@@ -160,7 +160,12 @@ if ($KeytoolPath) {
     Write-Host "    $SecretsDir\android\{dev,staging,prod}\$AppName-{env}.jks" -ForegroundColor Gray
     Write-Host "  Keep these passwords safe — losing them means you can never update the app." -ForegroundColor Yellow
     Write-Host ""
-    $DevPass     = Read-Host "  Dev keystore password"
+    do {
+        $DevPass = Read-Host "  Dev keystore password"
+        if ([string]::IsNullOrWhiteSpace($DevPass)) {
+            Write-Host "     ✗  Password cannot be blank." -ForegroundColor Red
+        }
+    } while ([string]::IsNullOrWhiteSpace($DevPass))
     $StagingPass = Read-Host "  Staging keystore password [Enter = same as dev]"
     $ProdPass    = Read-Host "  Prod keystore password    [Enter = same as dev]"
     if ([string]::IsNullOrWhiteSpace($StagingPass)) { $StagingPass = $DevPass }
