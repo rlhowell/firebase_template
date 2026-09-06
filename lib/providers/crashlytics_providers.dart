@@ -1,4 +1,5 @@
 import 'package:firebase_crashlytics/firebase_crashlytics.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'auth_providers.dart';
@@ -7,6 +8,8 @@ import 'auth_providers.dart';
 /// crash reports are linked to the right user. Must be watched at the root of
 /// the widget tree (App) to stay active.
 final crashlyticsIdentitySyncProvider = Provider<void>((ref) {
+  // firebase_crashlytics has no web implementation.
+  if (kIsWeb) return;
   ref.listen(authStateProvider, (previous, next) {
     final user = next.valueOrNull;
     if (user != null) {

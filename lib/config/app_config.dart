@@ -11,6 +11,7 @@ class AppConfig {
   final String functionsRegion;
   final String revenueCatKeyApple;
   final String revenueCatKeyAndroid;
+  final String appCheckRecaptchaKey;
 
   AppConfig._({
     required this.environment,
@@ -21,6 +22,7 @@ class AppConfig {
     required this.functionsRegion,
     required this.revenueCatKeyApple,
     required this.revenueCatKeyAndroid,
+    required this.appCheckRecaptchaKey,
   });
 
   static AppConfig setup({
@@ -32,6 +34,7 @@ class AppConfig {
     required String functionsRegion,
     required String revenueCatKeyApple,
     required String revenueCatKeyAndroid,
+    required String appCheckRecaptchaKey,
   }) {
     instance = AppConfig._(
       environment: environment,
@@ -42,6 +45,7 @@ class AppConfig {
       functionsRegion: functionsRegion,
       revenueCatKeyApple: revenueCatKeyApple,
       revenueCatKeyAndroid: revenueCatKeyAndroid,
+      appCheckRecaptchaKey: appCheckRecaptchaKey,
     );
     return instance;
   }

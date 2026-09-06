@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../services/deep_link_service.dart';
@@ -34,5 +35,9 @@ final initialDeepLinkProvider = FutureProvider<DeepLinkData?>((ref) async {
   final service = ref.read(deepLinkServiceProvider);
   final initial = await service.getInitialLink();
   if (initial != null) return initial;
+  // Deferred links attribute a pre-install click to a first app open — a
+  // mobile-only concept, and the callable is not reachable from a browser
+  // origin without CORS configured on the function.
+  if (kIsWeb) return null;
   return service.claimDeferredLink();
 });

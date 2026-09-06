@@ -1,4 +1,5 @@
 import 'package:firebase_app_check/firebase_app_check.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -28,11 +29,18 @@ void main() async {
     revenueCatKeyApple: const String.fromEnvironment('REVENUE_CAT_KEY_APPLE'),
     revenueCatKeyAndroid:
         const String.fromEnvironment('REVENUE_CAT_KEY_ANDROID'),
+    appCheckRecaptchaKey:
+        const String.fromEnvironment('APP_CHECK_RECAPTCHA_KEY'),
   );
   await bootstrap(
     firebaseOptions: DefaultFirebaseOptions.currentPlatform,
-    appCheckAndroid: AndroidProvider.debug,
-    appCheckApple: AppleProvider.debug,
+    appCheckAndroid: kDebugMode
+        ? AndroidProvider.debug
+        : AndroidProvider.playIntegrity,
+    appCheckApple: kDebugMode
+        ? AppleProvider.debug
+        : AppleProvider.appAttestWithDeviceCheckFallback,
+    appCheckWebSiteKey: AppConfig.instance.appCheckRecaptchaKey,
     enableCrashlyticsCollection: false,
     remoteConfigFetchInterval: Duration.zero,
   );
