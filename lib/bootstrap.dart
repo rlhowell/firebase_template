@@ -1,5 +1,3 @@
-import 'dart:io';
-
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_app_check/firebase_app_check.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -24,13 +22,11 @@ Future<void> bootstrap({
   required AppleProvider appCheckApple,
   required bool enableCrashlyticsCollection,
   required Duration remoteConfigFetchInterval,
+  required String appCheckWebSiteKey,
 }) async {
   await Firebase.initializeApp(options: firebaseOptions);
   _setupFirestore();
-  await FirebaseAppCheck.instance.activate(
-    androidProvider: appCheckAndroid,
-    appleProvider: appCheckApple,
-  );
+  await _setupAppCheck(appCheckAndroid, appCheckApple, appCheckWebSiteKey);
   await _setupCrashlytics(enableCrashlyticsCollection);
   await _setupRemoteConfig(remoteConfigFetchInterval);
   await _setupMessaging();
@@ -44,7 +40,31 @@ void _setupFirestore() {
   );
 }
 
+/// On web, App Check needs a reCAPTCHA Enterprise site key registered in the
+/// Firebase console. Activating without one throws, so it is skipped while
+/// [webSiteKey] is empty.
+Future<void> _setupAppCheck(
+  AndroidProvider android,
+  AppleProvider apple,
+  String webSiteKey,
+) async {
+  if (kIsWeb) {
+    if (webSiteKey.isEmpty) return;
+    await FirebaseAppCheck.instance.activate(
+      webProvider: ReCaptchaEnterpriseProvider(webSiteKey),
+    );
+    return;
+  }
+  await FirebaseAppCheck.instance.activate(
+    androidProvider: android,
+    appleProvider: apple,
+  );
+}
+
 Future<void> _setupCrashlytics(bool enableCollection) async {
+  // firebase_crashlytics has no web implementation — Flutter's default error
+  // handling applies there instead.
+  if (kIsWeb) return;
   await FirebaseCrashlytics.instance
       .setCrashlyticsCollectionEnabled(enableCollection);
   FlutterError.onError = FirebaseCrashlytics.instance.recordFlutterFatalError;
@@ -69,6 +89,9 @@ Future<void> _setupRemoteConfig(Duration fetchInterval) async {
 }
 
 Future<void> _setupMessaging() async {
+  // Web FCM needs a service worker (web/firebase-messaging-sw.js) and a VAPID
+  // key passed to getToken(); set those up before enabling this on web.
+  if (kIsWeb) return;
   FirebaseMessaging.onBackgroundMessage(_backgroundMessageHandler);
   await FirebaseMessaging.instance.setForegroundNotificationPresentationOptions(
     alert: true,
@@ -78,9 +101,12 @@ Future<void> _setupMessaging() async {
 }
 
 Future<void> _setupRevenueCat() async {
+  // purchases_flutter has no web implementation.
+  if (kIsWeb) return;
   final config = AppConfig.instance;
-  final apiKey =
-      Platform.isIOS ? config.revenueCatKeyApple : config.revenueCatKeyAndroid;
+  final apiKey = defaultTargetPlatform == TargetPlatform.iOS
+      ? config.revenueCatKeyApple
+      : config.revenueCatKeyAndroid;
   if (apiKey.isEmpty) return;
   await Purchases.configure(PurchasesConfiguration(apiKey));
 }

@@ -28,11 +28,14 @@ void main() async {
     revenueCatKeyApple: const String.fromEnvironment('REVENUE_CAT_KEY_APPLE'),
     revenueCatKeyAndroid:
         const String.fromEnvironment('REVENUE_CAT_KEY_ANDROID'),
+    appCheckRecaptchaKey:
+        const String.fromEnvironment('APP_CHECK_RECAPTCHA_KEY'),
   );
   await bootstrap(
     firebaseOptions: DefaultFirebaseOptions.currentPlatform,
     appCheckAndroid: AndroidProvider.debug,
     appCheckApple: AppleProvider.debug,
+    appCheckWebSiteKey: AppConfig.instance.appCheckRecaptchaKey,
     enableCrashlyticsCollection: true,
     remoteConfigFetchInterval: const Duration(minutes: 5),
   );

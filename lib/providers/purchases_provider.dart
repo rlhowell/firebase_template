@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../services/purchases_service.dart';
@@ -25,6 +26,8 @@ final offeringsProvider = FutureProvider<Offerings>((ref) {
 /// so purchase history is linked to the signed-in Firebase user.
 /// Must be watched at the root of the widget tree (App) to stay active.
 final purchasesIdentitySyncProvider = Provider<void>((ref) {
+  // purchases_flutter has no web implementation.
+  if (kIsWeb) return;
   ref.listen(authStateProvider, (previous, next) async {
     final user = next.valueOrNull;
     await ref.read(purchasesServiceProvider).setUserId(user?.uid);

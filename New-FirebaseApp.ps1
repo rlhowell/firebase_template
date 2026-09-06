@@ -233,6 +233,12 @@ ReplaceInFile "fastlane\Fastfile"              "YOUR_APP_NAME"            $AppNa
 ReplaceInFile "fastlane\Fastfile"              "com.yourcompany.yourapp"  $BundleIdProd
 ReplaceInFile "android\app\build.gradle.kts"   "YOUR_APP_NAME"            $AppName
 
+# Dart imports in test/ use the package name, which changes with the rename.
+# Glob rather than naming files so tests added to the template stay covered.
+Get-ChildItem "test" -Recurse -Filter *.dart -ErrorAction SilentlyContinue | ForEach-Object {
+    ReplaceInFile $_.FullName "package:firebase_template/" "package:$AppName/"
+}
+
 # ── Update iOS bundle identifiers ─────────────────────────────────────────────
 
 Write-Step "Updating iOS bundle identifiers"
@@ -276,13 +282,13 @@ New-Item -ItemType Directory -Force $SecretsDir | Out-Null
 # CUSTOM_SCHEME: lowercase app name, underscores replaced with hyphens (URL scheme rules)
 $CustomScheme = $AppName.ToLower() -replace '_', '-'
 
-[ordered]@{ APP_BUNDLE_ID = $BundleIdDev;     APP_NAME = "$AppDisplayName Dev";     DEEP_LINK_HOST = "TODO_DEV_PROJECT_ID.web.app";     CUSTOM_SCHEME = $CustomScheme } |
+[ordered]@{ APP_BUNDLE_ID = $BundleIdDev; APP_NAME = "$AppDisplayName Dev"; DEEP_LINK_HOST = "TODO_DEV_PROJECT_ID.web.app"; CUSTOM_SCHEME = $CustomScheme; FUNCTIONS_REGION = "europe-west2"; REVENUE_CAT_KEY_APPLE = ""; REVENUE_CAT_KEY_ANDROID = ""; APP_CHECK_RECAPTCHA_KEY = "" } |
     ConvertTo-Json | Set-Content "$SecretsDir\dev.json"
 
-[ordered]@{ APP_BUNDLE_ID = $BundleIdStaging; APP_NAME = "$AppDisplayName Staging"; DEEP_LINK_HOST = "TODO_STAGING_PROJECT_ID.web.app"; CUSTOM_SCHEME = $CustomScheme } |
+[ordered]@{ APP_BUNDLE_ID = $BundleIdStaging; APP_NAME = "$AppDisplayName Staging"; DEEP_LINK_HOST = "TODO_STAGING_PROJECT_ID.web.app"; CUSTOM_SCHEME = $CustomScheme; FUNCTIONS_REGION = "europe-west2"; REVENUE_CAT_KEY_APPLE = ""; REVENUE_CAT_KEY_ANDROID = ""; APP_CHECK_RECAPTCHA_KEY = "" } |
     ConvertTo-Json | Set-Content "$SecretsDir\staging.json"
 
-[ordered]@{ APP_BUNDLE_ID = $BundleIdProd;    APP_NAME = $AppDisplayName;           DEEP_LINK_HOST = "TODO_PROD_PROJECT_ID.web.app";    CUSTOM_SCHEME = $CustomScheme } |
+[ordered]@{ APP_BUNDLE_ID = $BundleIdProd; APP_NAME = $AppDisplayName; DEEP_LINK_HOST = "TODO_PROD_PROJECT_ID.web.app"; CUSTOM_SCHEME = $CustomScheme; FUNCTIONS_REGION = "europe-west2"; REVENUE_CAT_KEY_APPLE = ""; REVENUE_CAT_KEY_ANDROID = ""; APP_CHECK_RECAPTCHA_KEY = "" } |
     ConvertTo-Json | Set-Content "$SecretsDir\prod.json"
 
 Write-Ok "dev.json"
@@ -317,12 +323,22 @@ if ($KeytoolPath -and $DevPass) {
             -storepass $pass -keypass $pass `
             -dname "CN=$AppName" | Out-Null
 
-        @"
+        # Java's Properties.load() does not strip a BOM, so a UTF-8 BOM here
+        # becomes part of the first key name and every Gradle build fails with
+        # "null cannot be cast to non-null type kotlin.String". Windows
+        # PowerShell's -Encoding utf8 always writes one, so write the bytes
+        # ourselves with a BOM-less encoder.
+        $keystorePropsText = @"
 storeFile=$AppName-$envName.jks
 storePassword=$pass
 keyAlias=$alias
 keyPassword=$pass
-"@ | Set-Content "$dir\keystore.properties" -Encoding utf8
+"@
+        [IO.File]::WriteAllText(
+            (Join-Path $dir "keystore.properties"),
+            $keystorePropsText,
+            (New-Object Text.UTF8Encoding $false)
+        )
 
         Write-Ok "$envName → $jks"
     }
