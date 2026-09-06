@@ -541,7 +541,13 @@ new service.
 
 | | Dev | Staging | Prod |
 |---|---|---|---|
-| App Check | Debug provider | Debug provider | Play Integrity / AppAttest |
+| App Check | Debug in debug builds, Play Integrity / AppAttest in release | Debug in debug builds, Play Integrity / AppAttest in release | Debug in debug builds, Play Integrity / AppAttest in release |
+
+App Check providers are chosen by **build mode**, not environment: `kDebugMode` uses the debug
+provider so `flutter run` works without registering a token, and every release build — including
+dev — attests via Play Integrity / App Attest. This matters when a non-prod flavour is distributed
+through the Play Store, where each tester would otherwise need their own debug token allow-listed.
+On web the provider is reCAPTCHA Enterprise, active only when `APP_CHECK_RECAPTCHA_KEY` is set.
 | Crashlytics collection | Off | On | On |
 | Deep link host | Dev Firebase project | Staging Firebase project | Prod Firebase project |
 | Remote Config fetch | `Duration.zero` | 5 min | 1 hr |
