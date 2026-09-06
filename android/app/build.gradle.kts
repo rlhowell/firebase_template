@@ -15,6 +15,7 @@ val dartDefines: Map<String, String> = run {
 }
 
 val appBundleId = dartDefines["APP_BUNDLE_ID"] ?: "com.yourcompany.firebase_template"
+val appName = dartDefines["APP_NAME"] ?: "MyApp"
 val deepLinkHost = dartDefines["DEEP_LINK_HOST"] ?: ""
 val customScheme = dartDefines["CUSTOM_SCHEME"] ?: "yourapp"
 
@@ -69,6 +70,10 @@ android {
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
+        // The launcher label comes from the same secrets file as everything
+        // else, so it tracks the environment instead of being hardcoded - and
+        // a spawned app does not install under the template's name.
+        manifestPlaceholders["appName"] = appName
         manifestPlaceholders["deepLinkHost"] = deepLinkHost
         manifestPlaceholders["customScheme"] = customScheme
     }
