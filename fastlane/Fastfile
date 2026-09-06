@@ -46,11 +46,11 @@ platform :android do
 
     UI.message("Building #{tag} (android dev)")
 
-    sh("cp '#{SECRETS_DIR}/dev/google-services.json' '#{PROJECT_ROOT}/android/app/google-services.json'")
+    sh("cp \"#{SECRETS_DIR}/dev/google-services.json\" \"#{PROJECT_ROOT}/android/app/google-services.json\"")
 
     sh(
       "#{FLUTTER} build appbundle --release" \
-      " --dart-define-from-file='#{SECRETS_DIR}/dev.json'" \
+      " --dart-define-from-file=\"#{SECRETS_DIR}/dev.json\"" \
       " --target=lib/main_dev.dart" \
       " --build-number=#{build_no}" \
       " --build-name=#{version}"
@@ -84,11 +84,11 @@ platform :android do
 
     UI.message("Building #{tag} (android staging)")
 
-    sh("cp '#{SECRETS_DIR}/staging/google-services.json' '#{PROJECT_ROOT}/android/app/google-services.json'")
+    sh("cp \"#{SECRETS_DIR}/staging/google-services.json\" \"#{PROJECT_ROOT}/android/app/google-services.json\"")
 
     sh(
       "#{FLUTTER} build appbundle --release" \
-      " --dart-define-from-file='#{SECRETS_DIR}/staging.json'" \
+      " --dart-define-from-file=\"#{SECRETS_DIR}/staging.json\"" \
       " --target=lib/main_staging.dart" \
       " --build-number=#{build_no}" \
       " --build-name=#{version}"
@@ -122,11 +122,11 @@ platform :android do
 
     UI.message("Building #{tag} (android prod)")
 
-    sh("cp '#{SECRETS_DIR}/prod/google-services.json' '#{PROJECT_ROOT}/android/app/google-services.json'")
+    sh("cp \"#{SECRETS_DIR}/prod/google-services.json\" \"#{PROJECT_ROOT}/android/app/google-services.json\"")
 
     sh(
       "#{FLUTTER} build appbundle --release" \
-      " --dart-define-from-file='#{SECRETS_DIR}/prod.json'" \
+      " --dart-define-from-file=\"#{SECRETS_DIR}/prod.json\"" \
       " --target=lib/main_prod.dart" \
       " --build-number=#{build_no}" \
       " --build-name=#{version}"
